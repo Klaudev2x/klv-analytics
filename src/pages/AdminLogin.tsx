@@ -1,50 +1,47 @@
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../lib/analytics";
 
 export default function AdminLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<"login" | "signup">("login");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  useEffect(() => {
+    // Check if already logged in
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        window.location.href = "/admin/dashboard";
+      }
+    };
+    checkAuth();
+  }, []);
+
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setSuccess("");
     setLoading(true);
+    setError("");
 
     try {
-      if (mode === "signup") {
-        const { error: signUpError } = await supabase.auth.signUp({
+      if (isSignUp) {
+        const { error } = await supabase.auth.signUp({
           email,
           password,
         });
-
-        if (signUpError) {
-          setError(signUpError.message);
-        } else {
-          setSuccess(
-            "Signup successful! You can now sign in with your credentials."
-          );
-          setMode("login");
-          setPassword("");
-        }
+        if (error) throw error;
+        setError("Check your email for verification link");
       } else {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
+        const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
-
-        if (signInError) {
-          setError(signInError.message);
-        } else {
-          window.location.href = "/admin/dashboard";
-        }
+        if (error) throw error;
+        window.location.href = "/admin/dashboard";
       }
-    } catch (err) {
-      setError("An unexpected error occurred");
+    } catch (err: any) {
+      setError(err.message || "Authentication failed");
     } finally {
       setLoading(false);
     }
@@ -53,31 +50,18 @@ export default function AdminLogin() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
-        {/* Branding */}
+        {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center mx-auto mb-4">
-            <span className="text-white text-2xl font-bold">K</span>
-          </div>
-          <h1 className="text-3xl font-bold text-white mb-2">KLV.AI Analytics</h1>
-          <p className="text-slate-400">Admin Dashboard</p>
-          <p className="text-xs text-slate-500 mt-1">by Claude Atsika</p>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent mb-2">
+            KLV.AI Analytics
+          </h1>
+          <p className="text-slate-400">Real-time traffic tracking dashboard</p>
         </div>
 
-        {/* Form Card */}
-        <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-8 backdrop-blur">
-          {/* Messages */}
-          {error && (
-            <div className="mb-4 p-4 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm">
-              {error}
-            </div>
-          )}
-          {success && (
-            <div className="mb-4 p-4 bg-green-500/20 border border-green-500/50 rounded-lg text-green-200 text-sm">
-              {success}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Card */}
+        <div className="bg-slate-900 border border-slate-700 rounded-lg shadow-2xl p-8">
+          <form onSubmit={handleAuth} className="space-y-4">
+            {/* Email */}
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
                 Email
@@ -86,12 +70,13 @@ export default function AdminLogin() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition"
                 placeholder="you@example.com"
+                className="w-full px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition"
+                required
               />
             </div>
 
+            {/* Password */}
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
                 Password
@@ -100,49 +85,48 @@ export default function AdminLogin() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                required
-                className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition"
                 placeholder="••••••••"
+                className="w-full px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition"
+                required
               />
             </div>
 
+            {/* Error */}
+            {error && (
+              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded text-red-400 text-sm">
+                {error}
+              </div>
+            )}
+
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2 bg-cyan-600 hover:bg-cyan-700 disabled:bg-cyan-600/50 text-white font-medium rounded-lg transition"
+              className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold py-2 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading
-                ? "Loading..."
-                : mode === "login"
-                ? "Sign In"
-                : "Create Account"}
+              {loading ? "Loading..." : isSignUp ? "Sign Up" : "Sign In"}
             </button>
           </form>
 
+          {/* Toggle Auth Mode */}
           <div className="mt-4 text-center">
-            <p className="text-slate-400 text-sm">
-              {mode === "login"
-                ? "Don't have an account? "
-                : "Already have an account? "}
-              <button
-                onClick={() => {
-                  setMode(mode === "login" ? "signup" : "login");
-                  setError("");
-                  setSuccess("");
-                  setPassword("");
-                }}
-                className="text-cyan-400 hover:text-cyan-300 transition font-medium"
-              >
-                {mode === "login" ? "Sign up" : "Sign in"}
-              </button>
-            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setError("");
+              }}
+              className="text-cyan-400 hover:text-cyan-300 text-sm"
+            >
+              {isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
+            </button>
           </div>
         </div>
 
-        {/* Info */}
-        <div className="mt-8 text-center text-xs text-slate-500">
-          <p>Real-time analytics for KLV.AI</p>
-        </div>
+        {/* Footer */}
+        <p className="text-center text-slate-500 text-sm mt-6">
+          © 2026 KLV.AI - Production Ready Analytics
+        </p>
       </div>
     </div>
   );
