@@ -3,21 +3,56 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
-
-export function isConfigured(): boolean {
-  return !!(supabaseUrl && supabaseKey);
+function isValidUrl(url: string | undefined): url is string {
+  if (!url) return false;
+  if (url.includes("your-project-id")) return false;
+  if (url.includes("placeholder")) return false;
+  if (url.includes("example.com")) return false;
+  if (!url.startsWith("https://")) return false;
+  if (!url.includes(".supabase.co")) return false;
+  return true;
 }
 
+function isValidKey(key: string | undefined): key is string {
+  if (!key) return false;
+  if (key.includes("your-")) return false;
+  if (key.includes("placeholder")) return false;
+  if (key.length < 20) return false;
+  return true;
+}
+
+export const configStatus = {
+  urlValid: isValidUrl(supabaseUrl),
+  keyValid: isValidKey(supabaseKey),
+  url: supabaseUrl || "",
+  getConfigError(): string | null {
+    if (!supabaseUrl && !supabaseKey) {
+      return "Supabase environment variables are missing. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your Vercel project settings, then redeploy.";
+    }
+    if (!isValidUrl(supabaseUrl)) {
+      return `VITE_SUPABASE_URL is set to "${supabaseUrl}" which is not a valid Supabase URL. Update it to your real project URL (e.g. https://abc123.supabase.co) in Vercel settings, then redeploy.`;
+    }
+    if (!isValidKey(supabaseKey)) {
+      return "VITE_SUPABASE_ANON_KEY is invalid or still set to a placeholder. Copy your real anon key from the Supabase dashboard and set it in Vercel, then redeploy.";
+    }
+    return null;
+  },
+};
+
+export const supabase = (configStatus.urlValid && configStatus.keyValid)
+  ? createClient(supabaseUrl, supabaseKey)
+  : createClient("https://placeholder.supabase.co", "placeholder"); // dummy client — won't be used
+
 export async function checkConnection(): Promise<{ ok: boolean; error?: string }> {
-  if (!isConfigured()) {
-    return { ok: false, error: "Supabase URL or API key is missing. Check your environment variables." };
+  const configError = configStatus.getConfigError();
+  if (configError) {
+    return { ok: false, error: configError };
   }
 
   try {
     const { error } = await supabase.auth.getSession();
-    if (error && error.message.includes("Failed to fetch")) {
-      return { ok: false, error: `Cannot reach Supabase at ${supabaseUrl}. The server may be down or the URL is incorrect.` };
+    if (error && (error.message.includes("Failed to fetch") || error.message.includes("ERR_NAME"))) {
+      return { ok: false, error: `Cannot reach your Supabase project at ${supabaseUrl}. The project may be paused or the URL is incorrect.` };
     }
     return { ok: true };
   } catch (err) {
