@@ -58,14 +58,19 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const initAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
 
-      if (user) {
-        loadSubscription();
-        loadSites();
-      } else {
-        window.location.href = "/admin/login";
+        if (user) {
+          loadSubscription();
+          loadSites();
+        } else {
+          window.location.href = "/admin/login";
+        }
+      } catch {
+        setError("Cannot connect to the server. Please check your connection and refresh.");
+        setLoading(false);
       }
     };
 

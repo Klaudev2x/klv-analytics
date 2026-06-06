@@ -5,6 +5,26 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
+export function isConfigured(): boolean {
+  return !!(supabaseUrl && supabaseKey);
+}
+
+export async function checkConnection(): Promise<{ ok: boolean; error?: string }> {
+  if (!isConfigured()) {
+    return { ok: false, error: "Supabase URL or API key is missing. Check your environment variables." };
+  }
+
+  try {
+    const { error } = await supabase.auth.getSession();
+    if (error && error.message.includes("Failed to fetch")) {
+      return { ok: false, error: `Cannot reach Supabase at ${supabaseUrl}. The server may be down or the URL is incorrect.` };
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: `Connection failed: ${err instanceof Error ? err.message : "Unknown error"}` };
+  }
+}
+
 export async function trackingEndpoint(payload: unknown) {
   const functionUrl = `${supabaseUrl}/functions/v1/analytics-track`;
   const response = await fetch(functionUrl, {

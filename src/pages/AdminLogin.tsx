@@ -65,8 +65,13 @@ export default function AdminLogin() {
           window.location.href = "/admin/dashboard";
         }
       }
-    } catch {
-      setError("An unexpected error occurred. Please try again.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "An unexpected error occurred";
+      if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("Network request")) {
+        setError("Cannot connect to the server. Please check your internet connection and try again.");
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -81,6 +86,7 @@ export default function AdminLogin() {
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/admin/dashboard`,
+          skipBrowserRedirect: false,
         },
       });
 
@@ -89,8 +95,13 @@ export default function AdminLogin() {
         setLoading(false);
       }
       // OAuth redirect happens automatically — no need to setLoading(false)
-    } catch {
-      setError("Google sign-in failed. Please try again.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Google sign-in failed";
+      if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
+        setError("Cannot connect to the server. Please check your internet connection.");
+      } else {
+        setError(msg);
+      }
       setLoading(false);
     }
   };
