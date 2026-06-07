@@ -1,54 +1,28 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const FALLBACK_URL = "https://fuowphuqdnipprwjpgcj.supabase.co";
+const FALLBACK_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1b3dwaHVxZG5pcHByd2pwZ2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1Mzk2NjAsImV4cCI6MjA5NjExNTY2MH0.5qWVNwXR4E0RIiQ_ueMxwM2teVzLnA1136xE4aIx-Ww";
 
-function isValidUrl(url: string | undefined): url is string {
-  if (!url) return false;
-  if (url.includes("your-project-id")) return false;
-  if (url.includes("placeholder")) return false;
-  if (url.includes("example.com")) return false;
-  if (!url.startsWith("https://")) return false;
-  if (!url.includes(".supabase.co")) return false;
-  return true;
+function resolveUrl(envVal: string | undefined): string {
+  if (!envVal || envVal.includes("your-project-id") || envVal.includes("placeholder")) {
+    return FALLBACK_URL;
+  }
+  return envVal;
 }
 
-function isValidKey(key: string | undefined): key is string {
-  if (!key) return false;
-  if (key.includes("your-")) return false;
-  if (key.includes("placeholder")) return false;
-  if (key.length < 20) return false;
-  return true;
+function resolveKey(envVal: string | undefined): string {
+  if (!envVal || envVal.includes("your-") || envVal.includes("placeholder") || envVal.length < 20) {
+    return FALLBACK_KEY;
+  }
+  return envVal;
 }
 
-export const configStatus = {
-  urlValid: isValidUrl(supabaseUrl),
-  keyValid: isValidKey(supabaseKey),
-  url: supabaseUrl || "",
-  getConfigError(): string | null {
-    if (!supabaseUrl && !supabaseKey) {
-      return "Supabase environment variables are missing. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your Vercel project settings, then redeploy.";
-    }
-    if (!isValidUrl(supabaseUrl)) {
-      return `VITE_SUPABASE_URL is set to "${supabaseUrl}" which is not a valid Supabase URL. Update it to your real project URL (e.g. https://abc123.supabase.co) in Vercel settings, then redeploy.`;
-    }
-    if (!isValidKey(supabaseKey)) {
-      return "VITE_SUPABASE_ANON_KEY is invalid or still set to a placeholder. Copy your real anon key from the Supabase dashboard and set it in Vercel, then redeploy.";
-    }
-    return null;
-  },
-};
+const supabaseUrl = resolveUrl(import.meta.env.VITE_SUPABASE_URL);
+const supabaseKey = resolveKey(import.meta.env.VITE_SUPABASE_ANON_KEY);
 
-export const supabase = (configStatus.urlValid && configStatus.keyValid)
-  ? createClient(supabaseUrl, supabaseKey)
-  : createClient("https://placeholder.supabase.co", "placeholder"); // dummy client — won't be used
+export const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function checkConnection(): Promise<{ ok: boolean; error?: string }> {
-  const configError = configStatus.getConfigError();
-  if (configError) {
-    return { ok: false, error: configError };
-  }
-
   try {
     const { error } = await supabase.auth.getSession();
     if (error && (error.message.includes("Failed to fetch") || error.message.includes("ERR_NAME"))) {
