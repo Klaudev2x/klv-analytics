@@ -1,19 +1,18 @@
 import { createClient } from "@supabase/supabase-js";
 
+const FALLBACK_URL = "https://fuowphuqdnipprwjpgcj.supabase.co";
+const FALLBACK_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1b3dwaHVxZG5pcHByd2pwZ2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1Mzk2NjAsImV4cCI6MjA5NjExNTY2MH0.5qWVNwXR4E0RIiQ_ueMxwM2teVzLnA1136xE4aIx-Ww";
+
 function resolveUrl(envVal: string | undefined): string {
   if (!envVal || envVal.includes("your-project-id") || envVal.includes("placeholder")) {
-    throw new Error(
-      "Missing VITE_SUPABASE_URL environment variable. Please configure your Supabase project URL."
-    );
+    return FALLBACK_URL;
   }
   return envVal;
 }
 
 function resolveKey(envVal: string | undefined): string {
   if (!envVal || envVal.includes("your-") || envVal.includes("placeholder") || envVal.length < 20) {
-    throw new Error(
-      "Missing VITE_SUPABASE_ANON_KEY environment variable. Please configure your Supabase anonymous key."
-    );
+    return FALLBACK_KEY;
   }
   return envVal;
 }
@@ -59,27 +58,18 @@ export async function adminApiCall(
 ) {
   const functionUrl = `${supabaseUrl}/functions/v1/analytics-api/${endpoint}`;
 
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-  if (sessionError || !session) {
-    throw new Error("Not authenticated. Please log in to make API calls.");
-  }
-
   const response = await fetch(functionUrl, {
     method,
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${session.access_token}`,
+      Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ""}`,
+      apikey: supabaseKey,
     },
     body: body ? JSON.stringify(body) : undefined,
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const errorMsg = typeof errorData === 'object' && errorData !== null && 'error' in errorData
-      ? (errorData as Record<string, unknown>).error
-      : response.statusText;
-    throw new Error(`API call failed: ${errorMsg}`);
+    throw new Error(`API call failed: ${response.statusText}`);
   }
 
   return response.json();
